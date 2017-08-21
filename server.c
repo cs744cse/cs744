@@ -51,13 +51,13 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
     
-    listen(sockfd , 5);
+    listen(server_fd , 5);
     client_length = sizeof(client_address);
     
     while(1)
     {
         new_socketfd = accept(server_fd, (struct sockaddr *)&client_address, &client_length); 
-        if(new_socket < 0)
+        if(new_socketfd < 0)
 	{
         	perror("Accept() Error");
         	exit(EXIT_FAILURE);
