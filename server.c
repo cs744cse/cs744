@@ -1,76 +1,106 @@
-// Server side C/C++ program to demonstrate Socket programming
+// Tier 1 Server side C/C++ program to Socket programming
 #include <stdio.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
-#define PORT 8080
+#define PORT 8080 //default port
+
 int main(int argc, char const *argv[])
 {
-    int server_fd, new_socket, valread;
-    struct sockaddr_in address;
+    int server_fd , new_socketfd, pid, flag  , portno , server_length, client_length;
+    struct sockaddr_in server_address, client_address ;
+    //char buffer[1024] = {0};  used that in local buffer of communicate function
     int opt = 1;
-    int addrlen = sizeof(address);
-    char buffer[1024] = {0};
-    char *hello = "reached at server";
-      
+    
+    if (argc < 2)
+    {	    fprintf(stderr, "ERROR, no port provided\n");
+	    exit(1);  
+    }
+            
     // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
-    {
-        perror("socket failed");
+    server_fd = socket(AF_INET , SOCK_STREAM, 0);
+    
+    if (server_fd < 0)
+    {   perror("Socket Creation Failed");
         exit(EXIT_FAILURE);
     }
-      
-    // Forcefully attaching socket to the port 8080
+    
+    // The bzero( str, n) function copies n bytes, each with a value of zero, into string s.
+    bzero( (char *) &server_address, sizeof(server_address));
+    
+    //getting port number from argv[1] and initializing server's socketaddr_in struct (predefined) in socket.h
+    portno = atoi(argv[1]);
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = INADDR_ANY;
+    server_address.sin_port = htons( portno );
+    server_length = sizeof(server_address);
+    /*// Forcefully attaching socket to the port 8080
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
                                                   &opt, sizeof(opt)))
     {
         perror("setsockopt");
         exit(EXIT_FAILURE);
-    }
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( PORT );
+    }*/
+	// Tell me the need of forcefully attaching port to server
       
-    // Forcefully attaching socket to the port 8080
-    if (bind(server_fd, (struct sockaddr *)&address, 
-                                 sizeof(address))<0)
-    {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-
-  while(1){
-    if (listen(server_fd, 3) < 0)
-    {
-        perror("listen");
-        exit(EXIT_FAILURE);
-    }
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, 
-                       (socklen_t*)&addrlen))<0)
-    {
-        perror("accept");
+    // Binding socket
+    if (bind(server_fd, (struct sockaddr *)&server_address, server_length)<0)
+    {   perror("Bind() failed");
         exit(EXIT_FAILURE);
     }
     
-    
-
-    send(new_socket , hello , strlen(hello) , 0 );
-    
+    listen(sockfd , 5);
+    client_length = sizeof(client_address);
     
     while(1)
     {
+        new_socketfd = accept(server_fd, (struct sockaddr *)&client_address, &client_length); 
+        if(new_socket < 0)
+	{
+        	perror("Accept() Error");
+        	exit(EXIT_FAILURE);
+	}
     
-    valread = read( new_socket , buffer, 1024);
-   if( valread < 0)
-   {
-	   printf("Error reading");
-   }
-    printf("%s\n",buffer );
-    send(new_socket , hello , strlen(hello) , 0 );
-    printf("message sent\n");
-
+        pid = fork();
+	if(pid < 0)
+	{	perror("ERROR on fork");
+	 	exit(EXIT_FAILURE);
+	}
+        
+	if(pid == 0)
+	{	close(server_fd);
+	 	communicate(new_socketfd);
+	 	exit(0);
+	}
+        
+	else close(new_socketfd);
     }
-  }
-    return 0;
+    
+	return 0;
+}
+
+void communicate (int sock)
+{
+    int comflag=0;
+    char buffer[256];
+    bzero(buffer, 256);
+    
+    comflag = read(sock, buffer , 255);
+    if(comflag<0)
+    {
+	    perror("ERROR reading from socket");
+	    exit(EXIT_FAILURE);
+    }
+    printf("Message from client (ith) :%s\n" , buffer);
+    
+    comflag=write(sock , "I got your message" ,19 );
+    if (comflag < 0)
+    {
+	    perror("ERROR writing to socket");
+	    exit(EXIT_FAILURE);
+    }
+	
+    return;
 }
