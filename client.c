@@ -1,59 +1,54 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<sys/socket.h>
-#include<netinet/in.h>
-#include<string.h>
-#define PORT 8080
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
 
-int main(int argc, char const *argv[])
+void error(char *msg)
 {
-	struct sockaddr_in address;
-	int sock = 0, valread;
-	struct sockaddr_in serv_addr;
-	char hello[100];
-	char buffer[2048] = {0};
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-	{
-		printf("\n Socket creation error \n");
-		return -1;
-	}
-	memset(&serv_addr, '0', sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
- //Convert IPv4 and IPv6 addresses from text to binary form
- 	if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0) 
-	 {
- 		printf("\nInvalid address/ Address not supported \n");
- 		return -1;
-	 }
- 	if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
- 	{
- 		printf("\nConnection Failed \n");
- 		return -1;
-	 }
+    perror(msg);
+    exit(0);
+}
 
-	valread = read( sock , buffer, 2048);
- 	printf("%s\n",buffer );
-	gets(hello);
-	
-	while(1)
-	{
-	if(hello!="exit")
-	{	send(sock , hello , strlen(hello) , 0 );
- 		printf("message sent\n");
- 		valread = read( sock , buffer, 2048);
-		if(valread < 0)
-		{
-	
-			printf("Error in reading");
-		}
- 		printf("%s\n",buffer );
-		gets(hello);
-	}
-	else
-		exit(1);
+int main(int argc, char *argv[])
+{
+    int sockfd, portno, n;
 
-	}
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
 
-	return 0;
+    char buffer[256];
+    if (argc < 3) {
+       fprintf(stderr,"usage %s hostname port\n", argv[0]);
+       exit(0);
+    }
+    portno = atoi(argv[2]);
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+        error("ERROR opening socket");
+    server = gethostbyname(argv[1]);
+    if (server == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, 
+         (char *)&serv_addr.sin_addr.s_addr,
+         server->h_length);
+    serv_addr.sin_port = htons(portno);
+    if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0) 
+        error("ERROR connecting");
+    printf("Please enter the message: ");
+    bzero(buffer,256);
+    fgets(buffer,255,stdin);
+    n = write(sockfd,buffer,strlen(buffer));
+    if (n < 0) 
+         error("ERROR writing to socket");
+    bzero(buffer,256);
+    n = read(sockfd,buffer,255);
+    if (n < 0) 
+         error("ERROR reading from socket");
+    printf("%s\n",buffer);
+    return 0;
 }
